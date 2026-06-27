@@ -1,0 +1,1561 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>小红书推荐算法 90 天执行驾驶舱</title>
+  <style>
+    :root {
+      --page: #f7f5f0;
+      --surface: #fffdf9;
+      --surface-2: #f1f5f2;
+      --ink: #202226;
+      --muted: #66706d;
+      --subtle: #8d938e;
+      --line: #d9d7cf;
+      --line-strong: #c5c6bd;
+      --blue: #1e5da8;
+      --blue-soft: #eaf2fb;
+      --green: #1d7a4d;
+      --green-soft: #e8f5ee;
+      --orange: #b9631c;
+      --orange-soft: #fff0e3;
+      --red: #b74444;
+      --red-soft: #fff0ef;
+      --violet: #6c5ba7;
+      --violet-soft: #f2eefc;
+      --shadow: 0 14px 34px rgba(45, 43, 38, .09);
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--font);
+      letter-spacing: 0;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(90deg, rgba(204, 199, 188, .34) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(204, 199, 188, .24) 1px, transparent 1px),
+        var(--page);
+      background-size: 44px 44px;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    button {
+      min-height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--blue); color: var(--blue); }
+    button.primary { border-color: var(--green); background: var(--green); color: #fff; }
+    button.primary:hover { border-color: #145a39; background: #145a39; color: #fff; }
+    button.danger { border-color: var(--red); color: var(--red); }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    input,
+    select { min-height: 38px; padding: 0 10px; }
+    textarea { min-height: 82px; padding: 10px; resize: vertical; }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 780; }
+
+    .app {
+      width: min(1440px, calc(100vw - 28px));
+      margin: 0 auto;
+      padding: 18px 0 44px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: 14px 0;
+      background: rgba(247, 245, 240, .92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(197, 198, 189, .72);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .toolbar button { padding: 0 12px; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 14px 0 18px;
+    }
+
+    .tab {
+      flex: 0 0 auto;
+      padding: 0 14px;
+      color: var(--muted);
+      background: rgba(255, 253, 249, .76);
+    }
+
+    .tab.active {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .dashboard-grid {
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, .7fr);
+      align-items: start;
+    }
+
+    .two-col {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .three-col {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .panel,
+    .metric,
+    .task-row,
+    .post-row,
+    .topic-row,
+    .template-block {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 249, .92);
+      box-shadow: var(--shadow);
+    }
+
+    .panel { padding: 18px; }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    h2, h3, h4 { margin: 0; line-height: 1.28; }
+    h2 { font-size: 22px; }
+    h3 { font-size: 17px; }
+    h4 { font-size: 15px; }
+
+    .muted {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .pill,
+    .line-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 9px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .pill { background: var(--surface-2); color: var(--muted); }
+    .line-offer { background: var(--orange-soft); color: var(--orange); }
+    .line-foundation { background: var(--blue-soft); color: var(--blue); }
+    .line-paper { background: var(--green-soft); color: var(--green); }
+    .line-daily { background: var(--violet-soft); color: var(--violet); }
+
+    .status-todo { color: var(--muted); }
+    .status-progress { color: var(--blue); }
+    .status-done,
+    .status-reviewed { color: var(--green); }
+    .status-skipped { color: var(--red); }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .metric {
+      min-height: 86px;
+      padding: 12px;
+      box-shadow: none;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 7px;
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .focus-title {
+      margin: 10px 0 6px;
+      font-size: 32px;
+      line-height: 1.18;
+    }
+
+    .action-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .action-strip button { padding: 0 12px; }
+
+    .progress {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #ece9e0;
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--green), var(--blue));
+    }
+
+    .checklist {
+      display: grid;
+      gap: 8px;
+    }
+
+    .task-row {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      box-shadow: none;
+    }
+
+    .task-row input[type="checkbox"] {
+      width: 20px;
+      min-height: 20px;
+      accent-color: var(--green);
+    }
+
+    .row-title { font-weight: 830; }
+
+    .week-list,
+    .post-list,
+    .topic-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .post-row,
+    .topic-row {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      box-shadow: none;
+    }
+
+    .post-top,
+    .topic-top {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .post-meta,
+    .topic-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .post-controls {
+      display: grid;
+      grid-template-columns: minmax(170px, .35fr) 1fr;
+      gap: 10px;
+    }
+
+    .filters,
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .form-grid .wide { grid-column: span 2; }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .topic-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .template-block {
+      padding: 16px;
+      box-shadow: none;
+    }
+
+    .template-block ul {
+      margin: 10px 0 0;
+      padding-left: 1.15em;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .review-layout {
+      display: grid;
+      grid-template-columns: minmax(300px, .85fr) minmax(0, 1.15fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .number-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .insight-box {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid #e2c399;
+      border-radius: var(--radius);
+      background: var(--orange-soft);
+      color: #5f3918;
+      font-weight: 760;
+      line-height: 1.6;
+    }
+
+    .rate-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .empty {
+      padding: 18px;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: rgba(255, 253, 249, .7);
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 20;
+      max-width: min(420px, calc(100vw - 36px));
+      padding: 12px 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: #202226;
+      color: #fff;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: .18s ease;
+      pointer-events: none;
+      font-weight: 720;
+      line-height: 1.5;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .hidden-file { display: none; }
+
+    @media (max-width: 980px) {
+      .topbar,
+      .dashboard-grid,
+      .two-col,
+      .three-col,
+      .review-layout,
+      .template-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar { justify-content: flex-start; }
+      .metric-grid,
+      .rate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters,
+      .form-grid,
+      .number-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid .wide { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 640px) {
+      .app { width: min(100vw - 18px, 1440px); padding-bottom: 28px; }
+      .topbar { position: static; }
+      .brand h1 { font-size: 20px; }
+      .focus-title { font-size: 25px; }
+      .panel { padding: 14px; }
+      .metric-grid,
+      .rate-grid,
+      .filters,
+      .form-grid,
+      .number-grid,
+      .post-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>小红书推荐算法 90 天执行驾驶舱</h1>
+        <p>今日任务、30 天发布、选题库、笔记模板和数据复盘，都放在一个本地工作台里。</p>
+      </div>
+      <div class="toolbar" aria-label="工具栏">
+        <button type="button" id="exportBtn">导出</button>
+        <button type="button" id="importBtn">导入</button>
+        <button type="button" id="resetBtn" class="danger">重置</button>
+        <a href="index.html"><button type="button">首页</button></a>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="页面导航" id="tabs"></nav>
+
+    <main>
+      <section class="view active" data-view="dashboard" aria-label="首页驾驶舱">
+        <div class="metric-grid" id="metrics"></div>
+        <div class="grid dashboard-grid">
+          <section class="panel" id="todayPanel"></section>
+          <aside class="grid">
+            <section class="panel" id="launchPanel"></section>
+            <section class="panel" id="weekPanel"></section>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="calendar" aria-label="发布日历">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="eyebrow">30 天发布计划</div>
+              <h2>按周一 / 周三 / 周五 / 周日推进</h2>
+              <p class="muted">每篇内容都能改状态和备注，刷新页面后会保留。</p>
+            </div>
+            <button type="button" class="primary" id="markNextPostBtn">推进下一篇</button>
+          </div>
+          <div class="post-list" id="postList"></div>
+        </section>
+      </section>
+
+      <section class="view" data-view="topics" aria-label="选题库">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="eyebrow">内容资产</div>
+              <h2>选题库</h2>
+              <p class="muted">把评论区、私信和工作中的通用问题都沉淀成可发布选题。</p>
+            </div>
+          </div>
+          <form class="form-grid" id="topicForm">
+            <label class="wide">选题
+              <input name="title" required placeholder="例如：没有大厂实习，怎么准备推荐算法项目？">
+            </label>
+            <label>内容线
+              <select name="contentLine" required></select>
+            </label>
+            <label>状态
+              <select name="status" required></select>
+            </label>
+            <label class="wide">目标用户
+              <input name="targetUser" placeholder="例如：准备推荐算法面试的人">
+            </label>
+            <label class="wide">用户痛点
+              <input name="painPoint" placeholder="例如：不知道项目怎么写进简历">
+            </label>
+            <label class="wide">核心结论
+              <input name="coreClaim" placeholder="一句话讲清这篇的主判断">
+            </label>
+            <label class="wide">评论钩子
+              <input name="commentHook" placeholder="例如：你最卡项目、简历还是面试？">
+            </label>
+            <div class="full topic-actions">
+              <button type="submit" class="primary">新增选题</button>
+            </div>
+          </form>
+          <div class="filters">
+            <label>按内容线筛选
+              <select id="topicLineFilter"></select>
+            </label>
+            <label>按状态筛选
+              <select id="topicStatusFilter"></select>
+            </label>
+            <label>关键词
+              <input id="topicSearch" placeholder="搜索选题 / 痛点 / 结论">
+            </label>
+          </div>
+          <div class="topic-list" id="topicList"></div>
+        </section>
+      </section>
+
+      <section class="view" data-view="templates" aria-label="笔记模板">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="eyebrow">写作结构</div>
+              <h2>小红书技术笔记模板</h2>
+              <p class="muted">先讲痛点，再讲机制，最后给面试或工作表达。</p>
+            </div>
+          </div>
+          <div class="template-grid" id="templateGrid"></div>
+        </section>
+      </section>
+
+      <section class="view" data-view="reviews" aria-label="数据复盘">
+        <div class="review-layout">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">数据录入</div>
+                <h2>单篇笔记复盘</h2>
+                <p class="muted">录入数据后自动计算收藏率、评论率、关注转化和完读率。</p>
+              </div>
+            </div>
+            <form id="reviewForm" class="grid">
+              <label>选择笔记
+                <select name="postId" required></select>
+              </label>
+              <div class="number-grid">
+                <label>曝光<input name="impressions" inputmode="numeric" type="number" min="0"></label>
+                <label>阅读 / 播放<input name="reads" inputmode="numeric" type="number" min="0"></label>
+                <label>点赞<input name="likes" inputmode="numeric" type="number" min="0"></label>
+                <label>收藏<input name="saves" inputmode="numeric" type="number" min="0"></label>
+                <label>评论<input name="comments" inputmode="numeric" type="number" min="0"></label>
+                <label>新增关注<input name="follows" inputmode="numeric" type="number" min="0"></label>
+                <label>主页访问<input name="profileViews" inputmode="numeric" type="number" min="0"></label>
+                <label>完读<input name="completedReads" inputmode="numeric" type="number" min="0"></label>
+                <label>私信数<input name="dmCount" inputmode="numeric" type="number" min="0"></label>
+              </div>
+              <label>复盘备注
+                <textarea name="notes" placeholder="记录标题、封面、评论区反馈和下一步动作"></textarea>
+              </label>
+              <button type="submit" class="primary">保存复盘</button>
+            </form>
+          </section>
+          <section class="panel" id="reviewResult"></section>
+        </div>
+      </section>
+
+      <section class="view" data-view="settings" aria-label="设置和导出">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="eyebrow">本地数据</div>
+              <h2>设置 / 导出</h2>
+              <p class="muted">数据保存在当前浏览器。换浏览器或清理缓存前，请先导出 JSON。</p>
+            </div>
+          </div>
+          <form class="form-grid" id="settingsForm">
+            <label>起始日期
+              <input name="startDate" type="date">
+            </label>
+            <label class="wide">账号定位
+              <input name="accountPositioning">
+            </label>
+            <div class="full topic-actions">
+              <button type="submit" class="primary">保存设置</button>
+            </div>
+          </form>
+          <div class="grid two-col">
+            <div class="template-block">
+              <h3>备份建议</h3>
+              <ul>
+                <li>每周复盘后导出一次 JSON。</li>
+                <li>重置数据前先导出备份。</li>
+                <li>导入会覆盖当前浏览器里的本地状态。</li>
+              </ul>
+            </div>
+            <div class="template-block">
+              <h3>V1 边界</h3>
+              <ul>
+                <li>不接小红书 API，不自动抓数据。</li>
+                <li>不做云同步和多人协作。</li>
+                <li>不自动生成完整图片，只提供结构模板。</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <input class="hidden-file" type="file" id="importFile" accept="application/json">
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = "xhs-rec-cockpit-state-v1";
+
+    const contentLines = [
+      "推荐算法 Offer 路线",
+      "深度学习基础",
+      "推荐算法论文到工业实践",
+      "大厂算法工程师真实日常"
+    ];
+
+    const topicStatuses = [
+      ["todo", "未写"],
+      ["drafted", "已写"],
+      ["published", "已发"],
+      ["reviewed", "已复盘"]
+    ];
+
+    const postStatuses = [
+      ["todo", "未开始"],
+      ["progress", "写作中"],
+      ["published", "已发布"],
+      ["reviewed", "已复盘"]
+    ];
+
+    const taskStatuses = [
+      ["todo", "待做"],
+      ["progress", "进行中"],
+      ["done", "完成"],
+      ["skipped", "跳过"]
+    ];
+
+    const tabs = [
+      ["dashboard", "首页驾驶舱"],
+      ["calendar", "发布日历"],
+      ["topics", "选题库"],
+      ["templates", "笔记模板"],
+      ["reviews", "数据复盘"],
+      ["settings", "设置 / 导出"]
+    ];
+
+    const templates = [
+      {
+        title: "标题公式",
+        items: [
+          "面试会问：面试官问交叉熵，我会这样答",
+          "工作会用：为什么 CTR 预估常用 BCE，而不是 MSE？",
+          "新人误解：ESMM 不只是 pCTCVR = pCTR × pCVR",
+          "大厂场景：离线 AUC 涨了，线上效果为什么不一定涨？"
+        ]
+      },
+      {
+        title: "开头公式",
+        items: [
+          "先写用户常见误解或卡点。",
+          "再说明它在推荐系统里解决什么业务问题。",
+          "最后承诺用一个简单例子讲清楚。"
+        ]
+      },
+      {
+        title: "正文 5 模块",
+        items: [
+          "这个问题是什么？",
+          "为什么它重要？",
+          "传统做法有什么问题？",
+          "这个模型 / 概念怎么解决？",
+          "面试或工作里怎么表达？"
+        ]
+      },
+      {
+        title: "结尾与评论",
+        items: [
+          "用一句金句总结核心判断。",
+          "评论区问身份、卡点或下一篇选择。",
+          "不要只写欢迎讨论，要给用户明确回答入口。"
+        ]
+      },
+      {
+        title: "3:4 卡片规则",
+        items: [
+          "一张卡只讲一个核心判断。",
+          "标题是结论，不是目录。",
+          "优先结构图、流程图、对比图，少用装饰图。",
+          "每张卡最多一个公式，并用白话解释。"
+        ]
+      },
+      {
+        title: "语义色规则",
+        items: [
+          "蓝色：学习基础与概念。",
+          "绿色：选题资产与增长信号。",
+          "橙色：发布、排序、决策。",
+          "灰色：流程、背景和辅助说明。"
+        ]
+      }
+    ];
+
+    const defaultState = () => ({
+      version: 1,
+      settings: {
+        startDate: "2026-06-27",
+        accountPositioning: "推荐算法求职与工业实践号"
+      },
+      tasks: [
+        task("task-bio", "修改账号简介", "第 0 阶段", 1),
+        task("task-collections", "重命名 3 个合集", "第 0 阶段", 1),
+        task("task-offer-collection", "新增“推荐算法工程师 Offer 路线”合集", "第 0 阶段", 2),
+        task("task-pin-persona", "完成置顶人设帖", "第 1 阶段", 4),
+        task("task-pin-route", "完成置顶路线帖", "第 1 阶段", 6),
+        task("task-pin-paper", "完成置顶论文清单帖", "第 1 阶段", 7),
+        task("task-topics-50", "整理 50 个选题", "第 2 阶段", 10)
+      ],
+      posts: seedPosts(),
+      topics: seedTopics(),
+      reviews: []
+    });
+
+    function task(id, title, phase, dueDay) {
+      return { id, title, phase, dueDay, status: "todo", notes: "" };
+    }
+
+    function seedPosts() {
+      return [
+        post(1, 1, "周一", "从小城到 985，再到大厂推荐算法工程师", "大厂算法工程师真实日常", "建立人设", "你现在是本科、硕士、转行还是在职？"),
+        post(3, 1, "周三", "推荐算法工程师到底是做什么的？", "推荐算法 Offer 路线", "拉新", "你最想了解推荐算法岗哪一块？"),
+        post(5, 1, "周五", "DSSM 双塔召回为什么经典？", "推荐算法论文到工业实践", "建立专业度", "下一篇想看 YouTube DNN 还是 Wide&Deep？"),
+        post(7, 1, "周日", "评论区答疑：想进算法岗，最先卡在哪里？", "大厂算法工程师真实日常", "激活互动", "评论区说一下你当前最大的卡点。"),
+        post(8, 2, "周一", "推荐算法工程师 Offer 路线图", "推荐算法 Offer 路线", "强收藏", "你现在在哪个阶段，我后面按阶段拆路线。"),
+        post(10, 2, "周三", "面试官问交叉熵，我会这样答", "深度学习基础", "基础知识场景化", "如果这篇没看懂，告诉我卡在哪。"),
+        post(12, 2, "周五", "ESMM 为什么能解决 CVR 建模问题？", "推荐算法论文到工业实践", "推荐论文工业化", "下一篇讲 MMoE 还是 PLE？"),
+        post(14, 2, "周日", "我如果重新准备推荐算法岗，会怎么学？", "大厂算法工程师真实日常", "人设 + 方法论", "你最想补的是项目、简历还是面试？"),
+        post(15, 3, "周一", "推荐算法简历最容易踩的 5 个坑", "推荐算法 Offer 路线", "求职痛点", "你愿意让我后面写简历项目拆解吗？"),
+        post(17, 3, "周三", "AUC 和 GAUC 到底有什么区别？", "深度学习基础", "高频面试题", "你还想看哪些指标？"),
+        post(19, 3, "周五", "MMoE 为什么能缓解多任务冲突？", "推荐算法论文到工业实践", "专业壁垒", "下一篇拆 PLE 还是 ESMM？"),
+        post(21, 3, "周日", "大厂推荐算法工程师一天都在干什么？", "大厂算法工程师真实日常", "活人感", "你想看算法工程师哪类日常？"),
+        post(22, 4, "周一", "没有大厂实习，怎么准备推荐算法项目？", "推荐算法 Offer 路线", "强利他", "你现在有没有推荐系统项目？"),
+        post(24, 4, "周三", "为什么 CTR 预估常用 BCE，而不是 MSE？", "深度学习基础", "基础 + 推荐场景", "下一篇讲 KL 还是 Embedding？"),
+        post(26, 4, "周五", "PLE 为什么比 MMoE 更进一步？", "推荐算法论文到工业实践", "系列连续性", "你想看多任务学习完整路线吗？"),
+        post(28, 4, "周日", "评论区问得最多的推荐算法入门问题", "大厂算法工程师真实日常", "互动闭环", "把你最想问的问题留在评论区。")
+      ];
+    }
+
+    function post(day, week, weekday, title, contentLine, goal, hook) {
+      return {
+        id: `post-day-${day}`,
+        day,
+        week,
+        weekday,
+        title,
+        contentLine,
+        goal,
+        status: "todo",
+        hook,
+        notes: ""
+      };
+    }
+
+    function seedTopics() {
+      const offer = [
+        "推荐算法工程师到底是做什么的？",
+        "推荐算法岗和 CV/NLP/LLM 岗有什么区别？",
+        "想进推荐算法岗，第一步应该学什么？",
+        "推荐算法岗需要数学很好吗？",
+        "推荐算法面试最常问哪些模型？",
+        "推荐系统项目怎么写进简历？",
+        "没有大厂实习，怎么准备推荐算法项目？",
+        "推荐算法面试一个月复习路线",
+        "推荐算法简历最容易踩的 5 个坑",
+        "我如果重新准备推荐算法岗，会怎么学？",
+        "本科生想进推荐算法岗，应该怎么准备？",
+        "推荐算法校招项目怎么选题？",
+        "推荐算法面试怎么讲业务指标？",
+        "推荐系统项目没有线上数据怎么办？",
+        "算法求职中论文、项目、刷题怎么分配时间？"
+      ];
+      const foundation = [
+        "面试官问交叉熵，我会这样答",
+        "为什么 CTR 预估常用 BCE，而不是 MSE？",
+        "KL 散度到底在衡量什么？用推荐分布讲清楚",
+        "Embedding 为什么是推荐系统的灵魂？",
+        "Attention 为什么能建模用户兴趣？",
+        "Transformer 为什么适合序列推荐？",
+        "AUC 和 GAUC 到底有什么区别？",
+        "过拟合在推荐系统里通常怎么出现？",
+        "正则化为什么能让 CTR 模型更稳？",
+        "多目标 loss 到底怎么平衡？"
+      ];
+      const paper = [
+        "DSSM 双塔召回为什么经典？",
+        "YouTube DNN 召回模型到底强在哪里？",
+        "Wide&Deep 为什么适合记忆 + 泛化？",
+        "DeepFM 为什么能自动做特征交叉？",
+        "DIN 为什么比平均池化更适合兴趣建模？",
+        "ESMM 为什么能解决 CVR 样本选择偏差？",
+        "MMoE 为什么能缓解多任务冲突？",
+        "PLE 为什么比 MMoE 更进一步？",
+        "MMR 为什么能解决推荐结果太相似的问题？",
+        "HSTU 为什么代表推荐系统的新方向？",
+        "双塔召回为什么要做负采样？",
+        "DCN 的显式特征交叉到底显在哪里？",
+        "多目标排序为什么不能只看点击率？",
+        "DPP 多样性重排适合什么场景？",
+        "LLM4Rec 真正改变推荐系统了吗？"
+      ];
+      const daily = [
+        "大厂推荐算法工程师一天都在干什么？",
+        "推荐算法工程师每天都在看哪些指标？",
+        "为什么离线 AUC 涨了，线上效果不一定涨？",
+        "算法工程师怎么和产品经理沟通？",
+        "推荐模型上线前要做哪些检查？",
+        "一个推荐算法实验从想法到上线要经历什么？",
+        "算法工程师最容易被业务打脸的时刻",
+        "推荐系统里，为什么不能只优化点击率？",
+        "大厂算法实习生最需要补哪块能力？",
+        "推荐系统实验复盘一般看什么？"
+      ];
+      return [
+        ...topicBatch(offer, "推荐算法 Offer 路线", "准备实习校招或转推荐算法的人"),
+        ...topicBatch(foundation, "深度学习基础", "准备推荐算法面试的人"),
+        ...topicBatch(paper, "推荐算法论文到工业实践", "想把论文讲到工业场景的人"),
+        ...topicBatch(daily, "大厂算法工程师真实日常", "想了解真实算法工作的人")
+      ];
+    }
+
+    function topicBatch(titles, contentLine, targetUser) {
+      return titles.map((title, index) => ({
+        id: `${slug(contentLine)}-${index + 1}`,
+        title,
+        contentLine,
+        targetUser,
+        painPoint: "不知道这个问题在求职或工业实践中怎么表达",
+        coreClaim: inferClaim(title),
+        commentHook: "你最想看哪一块？评论区告诉我。",
+        status: "todo"
+      }));
+    }
+
+    function slug(value) {
+      const map = {
+        "推荐算法 Offer 路线": "offer",
+        "深度学习基础": "foundation",
+        "推荐算法论文到工业实践": "paper",
+        "大厂算法工程师真实日常": "daily"
+      };
+      return map[value] || String(value).toLowerCase().replace(/\W+/g, "-");
+    }
+
+    function inferClaim(title) {
+      if (title.includes("ESMM")) return "ESMM 的核心是把 CVR 从点击空间拉回曝光空间。";
+      if (title.includes("MMoE")) return "MMoE 用专家共享和门控缓解多任务冲突。";
+      if (title.includes("PLE")) return "PLE 通过共享和任务专属专家进一步拆开任务关系。";
+      if (title.includes("Embedding")) return "Embedding 是把用户、物品和上下文变成可学习语义空间。";
+      if (title.includes("Offer") || title.includes("准备")) return "求职路线要围绕基础、模型、项目和面试表达闭环。";
+      return "把知识点放回推荐系统业务问题里讲，才有求职和工业价值。";
+    }
+
+    let state = loadState();
+    let activeView = "dashboard";
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        if (!parsed || parsed.version !== 1) return defaultState();
+        return {
+          ...defaultState(),
+          ...parsed,
+          settings: { ...defaultState().settings, ...(parsed.settings || {}) },
+          tasks: parsed.tasks || [],
+          posts: parsed.posts || [],
+          topics: parsed.topics || [],
+          reviews: parsed.reviews || []
+        };
+      } catch (error) {
+        showToast("本地数据读取失败，已加载默认数据。");
+        return defaultState();
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (error) {
+        showToast("保存失败，请先导出 JSON 备份当前数据。");
+      }
+    }
+
+    function render() {
+      renderTabs();
+      renderDashboard();
+      renderCalendar();
+      renderTopics();
+      renderTemplates();
+      renderReviews();
+      renderSettings();
+      switchTab(activeView);
+    }
+
+    function renderTabs() {
+      const tabsEl = document.getElementById("tabs");
+      tabsEl.innerHTML = tabs.map(([id, label], index) => (
+        `<button type="button" class="tab ${id === activeView ? "active" : ""}" data-tab="${id}">${label}</button>`
+      )).join("");
+    }
+
+    function switchTab(id) {
+      activeView = id;
+      document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.tab === id));
+      document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.dataset.view === id));
+    }
+
+    function renderDashboard() {
+      const doneTasks = state.tasks.filter(item => item.status === "done").length;
+      const published = state.posts.filter(item => ["published", "reviewed"].includes(item.status)).length;
+      const reviewed = state.posts.filter(item => item.status === "reviewed").length;
+      const totalTopics = state.topics.length;
+      const metrics = [
+        ["启动清单", `${doneTasks}/${state.tasks.length}`, "账号基础设施完成度"],
+        ["30 天发布", `${published}/${state.posts.length}`, "已发布或已复盘"],
+        ["复盘闭环", `${reviewed}/${state.posts.length}`, "已完成数据复盘"],
+        ["选题库", totalTopics, "可持续发布资产"]
+      ];
+      document.getElementById("metrics").innerHTML = metrics.map(([label, value, desc]) => (
+        `<div class="metric"><span class="eyebrow">${label}</span><strong>${value}</strong><p class="muted">${desc}</p></div>`
+      )).join("");
+
+      const todayTask = state.tasks.find(item => item.status !== "done" && item.status !== "skipped") || state.tasks[0];
+      const nextPost = nextUnpublishedPost();
+      document.getElementById("todayPanel").innerHTML = `
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">今日焦点</div>
+            <h2>${escapeHtml(todayTask.title)}</h2>
+            <p class="muted">${escapeHtml(todayTask.phase)} · 建议 Day ${todayTask.dueDay}</p>
+          </div>
+          <span class="pill status-${todayTask.status}">${taskStatusLabel(todayTask.status)}</span>
+        </div>
+        <div class="progress"><span style="width:${percent(doneTasks, state.tasks.length)}%"></span></div>
+        <h3 class="focus-title">下一篇：${escapeHtml(nextPost ? nextPost.title : "30 天计划已全部发布")}</h3>
+        ${nextPost ? `
+          <div class="post-meta">
+            ${linePill(nextPost.contentLine)}
+            <span class="pill">Day ${nextPost.day}</span>
+            <span class="pill">${escapeHtml(nextPost.goal)}</span>
+          </div>
+          <p class="muted">评论钩子：${escapeHtml(nextPost.hook)}</p>
+        ` : "<p class='muted'>可以进入数据复盘，筛出下一阶段要放大的内容主线。</p>"}
+        <div class="action-strip">
+          <button type="button" class="primary" data-complete-task="${todayTask.id}">完成今日任务</button>
+          ${nextPost ? `<button type="button" data-start-post="${nextPost.id}">下一篇设为写作中</button>` : ""}
+          <button type="button" data-jump="topics">去选题库</button>
+          <button type="button" data-jump="reviews">做复盘</button>
+        </div>
+      `;
+
+      document.getElementById("launchPanel").innerHTML = `
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">启动清单</div>
+            <h2>账号基础设施</h2>
+          </div>
+          <span class="pill">${Math.round(percent(doneTasks, state.tasks.length))}%</span>
+        </div>
+        <div class="checklist">
+          ${state.tasks.map(item => `
+            <div class="task-row">
+              <input type="checkbox" ${item.status === "done" ? "checked" : ""} data-task-check="${item.id}">
+              <div>
+                <div class="row-title">${escapeHtml(item.title)}</div>
+                <p class="muted">${escapeHtml(item.phase)} · Day ${item.dueDay}</p>
+              </div>
+              <select data-task-status="${item.id}">
+                ${taskStatuses.map(([value, label]) => `<option value="${value}" ${item.status === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+            </div>
+          `).join("")}
+        </div>
+      `;
+
+      const currentWeek = weekOfNextPost();
+      const weekPosts = state.posts.filter(item => item.week === currentWeek);
+      document.getElementById("weekPanel").innerHTML = `
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">本周发布节奏</div>
+            <h2>第 ${currentWeek} 周</h2>
+          </div>
+          <button type="button" data-jump="calendar">查看全部</button>
+        </div>
+        <div class="week-list">
+          ${weekPosts.map(postItem).join("")}
+        </div>
+      `;
+    }
+
+    function renderCalendar() {
+      document.getElementById("postList").innerHTML = state.posts.map(postItemEditable).join("");
+    }
+
+    function renderTopics() {
+      fillSelect(document.querySelector("#topicForm select[name='contentLine']"), contentLines.map(item => [item, item]));
+      fillSelect(document.querySelector("#topicForm select[name='status']"), topicStatuses);
+      fillSelect(document.getElementById("topicLineFilter"), [["all", "全部内容线"], ...contentLines.map(item => [item, item])]);
+      fillSelect(document.getElementById("topicStatusFilter"), [["all", "全部状态"], ...topicStatuses]);
+      const lineFilter = document.getElementById("topicLineFilter").value || "all";
+      const statusFilter = document.getElementById("topicStatusFilter").value || "all";
+      const q = (document.getElementById("topicSearch").value || "").trim().toLowerCase();
+      const topics = state.topics.filter(item => {
+        const lineOk = lineFilter === "all" || item.contentLine === lineFilter;
+        const statusOk = statusFilter === "all" || item.status === statusFilter;
+        const text = `${item.title} ${item.targetUser} ${item.painPoint} ${item.coreClaim} ${item.commentHook}`.toLowerCase();
+        return lineOk && statusOk && (!q || text.includes(q));
+      });
+      document.getElementById("topicList").innerHTML = topics.length
+        ? topics.map(topicItem).join("")
+        : "<div class='empty'>没有匹配的选题</div>";
+    }
+
+    function renderTemplates() {
+      document.getElementById("templateGrid").innerHTML = templates.map(item => `
+        <article class="template-block">
+          <h3>${escapeHtml(item.title)}</h3>
+          <ul>${item.items.map(line => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
+        </article>
+      `).join("");
+    }
+
+    function renderReviews() {
+      const select = document.querySelector("#reviewForm select[name='postId']");
+      fillSelect(select, state.posts.map(item => [item.id, `Day ${item.day} · ${item.title}`]));
+      const postId = select.value || (state.posts[0] && state.posts[0].id);
+      populateReviewForm(postId);
+      renderReviewResult(postId);
+    }
+
+    function populateReviewForm(postId) {
+      const review = getReview(postId);
+      const form = document.getElementById("reviewForm");
+      Object.keys(review).forEach(key => {
+        const input = form.elements[key];
+        if (input && key !== "postId") input.value = review[key] || "";
+      });
+    }
+
+    function renderReviewResult(postId) {
+      const postData = state.posts.find(item => item.id === postId) || state.posts[0];
+      const review = getReview(postData.id);
+      const rates = calcRates(review);
+      document.getElementById("reviewResult").innerHTML = `
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">复盘判断</div>
+            <h2>${escapeHtml(postData.title)}</h2>
+            <p class="muted">${escapeHtml(postData.contentLine)} · ${escapeHtml(postData.goal)}</p>
+          </div>
+          ${linePill(postData.contentLine)}
+        </div>
+        <div class="rate-grid">
+          ${rateBox("收藏率", rates.saveRate)}
+          ${rateBox("评论率", rates.commentRate)}
+          ${rateBox("关注转化", rates.followRate)}
+          ${rateBox("完读率", rates.completeRate)}
+        </div>
+        <div class="insight-box">${escapeHtml(insightFor(review, rates))}</div>
+        <div class="template-block" style="margin-top:14px;">
+          <h3>下一步动作</h3>
+          <ul>
+            <li>收藏高的内容继续系列化拆分。</li>
+            <li>评论高的内容整理成下一篇答疑。</li>
+            <li>关注低时回看主页简介、合集名和置顶三帖是否清晰。</li>
+          </ul>
+        </div>
+      `;
+    }
+
+    function renderSettings() {
+      const form = document.getElementById("settingsForm");
+      form.elements.startDate.value = state.settings.startDate || "";
+      form.elements.accountPositioning.value = state.settings.accountPositioning || "";
+    }
+
+    function postItem(item) {
+      return `
+        <article class="post-row">
+          <div class="post-top">
+            <h3>${escapeHtml(item.weekday)} · ${escapeHtml(item.title)}</h3>
+            <span class="pill status-${item.status}">${postStatusLabel(item.status)}</span>
+          </div>
+          <div class="post-meta">
+            ${linePill(item.contentLine)}
+            <span class="pill">Day ${item.day}</span>
+            <span class="pill">${escapeHtml(item.goal)}</span>
+          </div>
+        </article>
+      `;
+    }
+
+    function postItemEditable(item) {
+      return `
+        <article class="post-row">
+          <div class="post-top">
+            <div>
+              <h3>Day ${item.day} · ${escapeHtml(item.weekday)} · ${escapeHtml(item.title)}</h3>
+              <p class="muted">评论钩子：${escapeHtml(item.hook)}</p>
+            </div>
+            ${linePill(item.contentLine)}
+          </div>
+          <div class="post-controls">
+            <select data-post-status="${item.id}">
+              ${postStatuses.map(([value, label]) => `<option value="${value}" ${item.status === value ? "selected" : ""}>${label}</option>`).join("")}
+            </select>
+            <input data-post-notes="${item.id}" value="${escapeAttr(item.notes || "")}" placeholder="备注：标题、封面、评论反馈或下一步">
+          </div>
+        </article>
+      `;
+    }
+
+    function topicItem(item) {
+      return `
+        <article class="topic-row">
+          <div class="topic-top">
+            <h3>${escapeHtml(item.title)}</h3>
+            ${linePill(item.contentLine)}
+          </div>
+          <div class="topic-meta">
+            <span class="pill status-${item.status}">${topicStatusLabel(item.status)}</span>
+            <span class="pill">目标：${escapeHtml(item.targetUser || "未填写")}</span>
+          </div>
+          <div class="grid two-col">
+            <label>用户痛点
+              <input data-topic-field="${item.id}:painPoint" value="${escapeAttr(item.painPoint || "")}">
+            </label>
+            <label>核心结论
+              <input data-topic-field="${item.id}:coreClaim" value="${escapeAttr(item.coreClaim || "")}">
+            </label>
+            <label>评论钩子
+              <input data-topic-field="${item.id}:commentHook" value="${escapeAttr(item.commentHook || "")}">
+            </label>
+            <label>状态
+              <select data-topic-status="${item.id}">
+                ${topicStatuses.map(([value, label]) => `<option value="${value}" ${item.status === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+            </label>
+          </div>
+          <div class="topic-actions">
+            <button type="button" class="danger" data-delete-topic="${item.id}">删除</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function nextUnpublishedPost() {
+      return state.posts.find(item => !["published", "reviewed"].includes(item.status));
+    }
+
+    function weekOfNextPost() {
+      const next = nextUnpublishedPost();
+      return next ? next.week : 4;
+    }
+
+    function getReview(postId) {
+      let review = state.reviews.find(item => item.postId === postId);
+      if (!review) {
+        review = {
+          postId,
+          impressions: 0,
+          reads: 0,
+          likes: 0,
+          saves: 0,
+          comments: 0,
+          follows: 0,
+          profileViews: 0,
+          completedReads: 0,
+          dmCount: 0,
+          notes: ""
+        };
+      }
+      return review;
+    }
+
+    function upsertReview(review) {
+      const index = state.reviews.findIndex(item => item.postId === review.postId);
+      if (index >= 0) state.reviews[index] = review;
+      else state.reviews.push(review);
+    }
+
+    function calcRates(review) {
+      return {
+        saveRate: ratio(review.saves, review.reads),
+        commentRate: ratio(review.comments, review.reads),
+        followRate: ratio(review.follows, review.profileViews),
+        completeRate: ratio(review.completedReads, review.reads)
+      };
+    }
+
+    function insightFor(review, rates) {
+      const reads = Number(review.reads || 0);
+      const impressions = Number(review.impressions || 0);
+      if (!reads && !impressions) return "先录入曝光和阅读数据。复盘不是看点赞，而是看收藏、评论、关注和完读。";
+      if (rates.saveRate !== null && rates.saveRate >= 0.08 && (rates.commentRate === null || rates.commentRate < 0.01)) {
+        return "收藏高、评论低：内容有长期价值，但互动钩子弱。下篇结尾要给用户明确选择题。";
+      }
+      if (rates.commentRate !== null && rates.commentRate >= 0.02 && (rates.saveRate === null || rates.saveRate < 0.04)) {
+        return "评论高、收藏低：话题有讨论性，但干货不足。可以补一篇结构化方法论。";
+      }
+      if (Number(review.likes || 0) > Number(review.follows || 0) * 8 && Number(review.profileViews || 0) > 0) {
+        return "点赞高、关注低：单篇不错，但账号承诺可能不够清晰。检查简介、合集和置顶三帖。";
+      }
+      if (impressions > 0 && reads / impressions < 0.08 && (Number(review.comments || 0) + Number(review.saves || 0)) > 0) {
+        return "曝光低或点击弱但互动不错：选题可能成立，标题和封面需要更直接。";
+      }
+      if (impressions > 0 && reads / impressions >= 0.2 && rates.saveRate !== null && rates.saveRate < 0.02) {
+        return "曝光高、收藏低：标题吸引人，但正文价值不够。下次增加路线图、清单或面试表达。";
+      }
+      return "数据暂时均衡。继续按本周节奏发布，并观察哪条内容线更容易带来收藏和关注。";
+    }
+
+    function rateBox(label, value) {
+      return `<div class="metric"><span class="eyebrow">${label}</span><strong>${value === null ? "-" : `${(value * 100).toFixed(1)}%`}</strong></div>`;
+    }
+
+    function ratio(num, den) {
+      const n = Number(num || 0);
+      const d = Number(den || 0);
+      return d > 0 ? n / d : null;
+    }
+
+    function percent(num, den) {
+      return den > 0 ? Math.max(0, Math.min(100, (num / den) * 100)) : 0;
+    }
+
+    function linePill(contentLine) {
+      const classMap = {
+        "推荐算法 Offer 路线": "line-offer",
+        "深度学习基础": "line-foundation",
+        "推荐算法论文到工业实践": "line-paper",
+        "大厂算法工程师真实日常": "line-daily"
+      };
+      return `<span class="line-pill ${classMap[contentLine] || ""}">${escapeHtml(contentLine)}</span>`;
+    }
+
+    function taskStatusLabel(value) {
+      return (taskStatuses.find(item => item[0] === value) || [value, value])[1];
+    }
+
+    function postStatusLabel(value) {
+      return (postStatuses.find(item => item[0] === value) || [value, value])[1];
+    }
+
+    function topicStatusLabel(value) {
+      return (topicStatuses.find(item => item[0] === value) || [value, value])[1];
+    }
+
+    function fillSelect(select, options) {
+      const current = select.value;
+      select.innerHTML = options.map(([value, label]) => `<option value="${escapeAttr(value)}">${escapeHtml(label)}</option>`).join("");
+      if (options.some(([value]) => value === current)) select.value = current;
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, "&#96;");
+    }
+
+    document.addEventListener("click", event => {
+      const tab = event.target.closest("[data-tab]");
+      if (tab) switchTab(tab.dataset.tab);
+
+      const jump = event.target.closest("[data-jump]");
+      if (jump) switchTab(jump.dataset.jump);
+
+      const completeTask = event.target.closest("[data-complete-task]");
+      if (completeTask) {
+        const item = state.tasks.find(taskItem => taskItem.id === completeTask.dataset.completeTask);
+        if (item) item.status = "done";
+        saveState();
+        render();
+        showToast("今日任务已标记完成。");
+      }
+
+      const startPost = event.target.closest("[data-start-post]");
+      if (startPost) {
+        const item = state.posts.find(postItem => postItem.id === startPost.dataset.startPost);
+        if (item) item.status = "progress";
+        saveState();
+        render();
+        switchTab("calendar");
+        showToast("下一篇已设为写作中。");
+      }
+
+      const deleteTopic = event.target.closest("[data-delete-topic]");
+      if (deleteTopic && confirm("确定删除这个选题吗？")) {
+        state.topics = state.topics.filter(item => item.id !== deleteTopic.dataset.deleteTopic);
+        saveState();
+        renderTopics();
+        showToast("选题已删除。");
+      }
+    });
+
+    document.addEventListener("change", event => {
+      const target = event.target;
+      if (target.matches("[data-task-check]")) {
+        const item = state.tasks.find(taskItem => taskItem.id === target.dataset.taskCheck);
+        if (item) item.status = target.checked ? "done" : "todo";
+        saveState();
+        render();
+      }
+      if (target.matches("[data-task-status]")) {
+        const item = state.tasks.find(taskItem => taskItem.id === target.dataset.taskStatus);
+        if (item) item.status = target.value;
+        saveState();
+        render();
+      }
+      if (target.matches("[data-post-status]")) {
+        const item = state.posts.find(postItem => postItem.id === target.dataset.postStatus);
+        if (item) item.status = target.value;
+        saveState();
+        renderDashboard();
+        renderCalendar();
+      }
+      if (target.matches("[data-topic-status]")) {
+        const item = state.topics.find(topicItem => topicItem.id === target.dataset.topicStatus);
+        if (item) item.status = target.value;
+        saveState();
+        renderTopics();
+        renderDashboard();
+      }
+      if (target.id === "topicLineFilter" || target.id === "topicStatusFilter") renderTopics();
+      if (target.matches("#reviewForm select[name='postId']")) {
+        populateReviewForm(target.value);
+        renderReviewResult(target.value);
+      }
+    });
+
+    document.addEventListener("input", event => {
+      const target = event.target;
+      if (target.matches("[data-post-notes]")) {
+        const item = state.posts.find(postItem => postItem.id === target.dataset.postNotes);
+        if (item) item.notes = target.value;
+        saveState();
+      }
+      if (target.matches("[data-topic-field]")) {
+        const [id, field] = target.dataset.topicField.split(":");
+        const item = state.topics.find(topicItem => topicItem.id === id);
+        if (item) item[field] = target.value;
+        saveState();
+      }
+      if (target.id === "topicSearch") renderTopics();
+    });
+
+    document.getElementById("topicForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const data = Object.fromEntries(new FormData(form).entries());
+      state.topics.unshift({
+        id: `topic-custom-${Date.now()}`,
+        title: data.title.trim(),
+        contentLine: data.contentLine,
+        targetUser: data.targetUser.trim(),
+        painPoint: data.painPoint.trim(),
+        coreClaim: data.coreClaim.trim(),
+        commentHook: data.commentHook.trim(),
+        status: data.status
+      });
+      form.reset();
+      saveState();
+      render();
+      showToast("选题已加入。");
+    });
+
+    document.getElementById("reviewForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const data = Object.fromEntries(new FormData(form).entries());
+      const review = {
+        postId: data.postId,
+        impressions: cleanNumber(data.impressions),
+        reads: cleanNumber(data.reads),
+        likes: cleanNumber(data.likes),
+        saves: cleanNumber(data.saves),
+        comments: cleanNumber(data.comments),
+        follows: cleanNumber(data.follows),
+        profileViews: cleanNumber(data.profileViews),
+        completedReads: cleanNumber(data.completedReads),
+        dmCount: cleanNumber(data.dmCount),
+        notes: data.notes || ""
+      };
+      upsertReview(review);
+      const postData = state.posts.find(item => item.id === data.postId);
+      if (postData && postData.status === "published") postData.status = "reviewed";
+      saveState();
+      render();
+      switchTab("reviews");
+      showToast("复盘已保存。");
+    });
+
+    document.getElementById("settingsForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+      state.settings.startDate = data.startDate;
+      state.settings.accountPositioning = data.accountPositioning.trim();
+      saveState();
+      renderSettings();
+      showToast("设置已保存。");
+    });
+
+    document.getElementById("markNextPostBtn").addEventListener("click", () => {
+      const item = nextUnpublishedPost();
+      if (!item) {
+        showToast("30 天计划已经全部推进完。");
+        return;
+      }
+      item.status = item.status === "todo" ? "progress" : "published";
+      saveState();
+      render();
+      switchTab("calendar");
+      showToast(`已推进：${item.title}`);
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `xiaohongshu-cockpit-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast("已导出 JSON 备份。");
+    });
+
+    document.getElementById("importBtn").addEventListener("click", () => {
+      document.getElementById("importFile").click();
+    });
+
+    document.getElementById("importFile").addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const imported = JSON.parse(reader.result);
+          if (!imported || imported.version !== 1 || !Array.isArray(imported.posts)) {
+            throw new Error("Invalid data");
+          }
+          if (!confirm("导入会覆盖当前本地数据，确定继续吗？")) return;
+          state = imported;
+          saveState();
+          render();
+          showToast("导入成功。");
+        } catch (error) {
+          showToast("导入失败：JSON 格式不符合驾驶舱数据结构。");
+        } finally {
+          event.target.value = "";
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      if (!confirm("确定重置为默认数据吗？当前本地修改会被覆盖。")) return;
+      state = defaultState();
+      saveState();
+      render();
+      showToast("已重置为默认 90 天计划。");
+    });
+
+    function cleanNumber(value) {
+      const number = Number(value);
+      return Number.isFinite(number) && number >= 0 ? number : 0;
+    }
+
+    render();
+  </script>
+</body>
+</html>
